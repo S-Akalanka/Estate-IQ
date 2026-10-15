@@ -7,7 +7,10 @@ authors = [
     { name = "S-Akalanka", email = "sasiri.akalankaa@gmail.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "playwright>=1.64.0",
+]
 
 [project.scripts]
 prime-land = "prime_land:main"
