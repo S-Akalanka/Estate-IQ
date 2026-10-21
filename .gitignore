@@ -12,3 +12,6 @@ wheels/
 .env
 data/qdrant/
 data/cag_cache/
+
+# output files
+data/primelands_markdown/*.md
