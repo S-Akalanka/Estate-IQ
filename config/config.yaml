@@ -1,0 +1,62 @@
+crawling:
+  base_url: https://www.primelands.lk
+  language_suffix: /en
+  max_depth: 1
+  max_pages: 150
+  delay_seconds: 1.0
+  page_timeout_ms: 60000
+  settle_ms: 1500
+  min_content_chars: 100
+  start_paths:
+    - /en
+    - /land/en
+    - /house/en
+    - /apartment/en
+    - /portfolio-property/en
+    - /upcoming-projects/en
+    - /about-us/en
+    - /contact-us/en
+    - /sell-your-land/en
+    - /services/en
+    - /testimonial/en
+    - /careers/en
+    - /news/en
+    - /online-publications/en
+    - /blog/en
+    - /virtual-tour/en
+    - /kyc/en
+    - /land/city/Kadawatha/en
+    - /land/city/Homagama/en
+    - /land/city/Kandy/en
+    - /land/city/Anuradhapura/en
+    - /land/city/Kurunegala/en
+    - /land/city/Horana/en
+    - /land/city/Malabe/en
+    - /land/city/Kalutara/en
+    - /land/city/Gampaha/en
+    - /land/city/Colombo/en
+    - /house/city/Thalawathugoda/en
+    - /house/city/Kottawa/en
+    - /house/city/Kadawatha/en
+    - /house/city/Piliyandala/en
+    - /house/city/Nugegoda/en
+    - /house/city/Kelaniya/en
+    - /house/city/Kandy/en
+    - /house/city/Kalutara/en
+    - /house/city/Malabe/en
+    - /house/city/Nawagamuwa/en
+  exclude_patterns:
+    - /public/assets/
+    - /cdn-cgi/
+    - /admin
+    - /login
+    - /ims-policy
+    - /sitemap
+    - /privacy-policy
+    - /terms-and-conditions
+    - /disclaimer
+
+paths:
+  data_dir: data
+  markdown_dir: data/primelands_markdown
+  corpus_file: data/primelands_corpus.jsonl
