@@ -1,9 +1,13 @@
+import os
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = PROJECT_ROOT / "config"
+
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 def load_config(filename: str = "config.yaml") -> dict:
@@ -18,3 +22,16 @@ CONFIG = load_config()
 def get_path(name: str) -> Path:
     """Resolve a path from the paths section of config.yaml."""
     return PROJECT_ROOT / CONFIG["paths"][name]
+
+
+def get_api_key() -> str:
+    """Read the OpenRouter key from the environment."""
+    key = os.getenv("OPENROUTER_API_KEY")
+    if not key:
+        raise ValueError("OPENROUTER_API_KEY is missing, add it to the .env file")
+    return key
+
+
+def load_faqs() -> list[str]:
+    """Read the FAQ questions used to warm the cache."""
+    return load_config("faqs.yaml")["faqs"]

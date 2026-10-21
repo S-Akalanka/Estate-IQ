@@ -60,3 +60,114 @@ paths:
   data_dir: data
   markdown_dir: data/primelands_markdown
   corpus_file: data/primelands_corpus.jsonl
+  chunks_dir: data/chunks
+  vector_dir: data/qdrant
+  cache_dir: data/cag_cache
+  results_dir: data/results
+
+provider:
+  openrouter_base_url: https://openrouter.ai/api/v1
+  chat_model: openai/gpt-4o-mini
+  embedding_model: openai/text-embedding-3-small
+  embedding_dimensions: 1536
+  embedding_batch_size: 100
+  temperature: 0.0
+  max_tokens: 1000
+
+chunking:
+  encoding: cl100k_base
+  strategies: [semantic, fixed, sliding, parent_child, late]
+  fixed:
+    chunk_size: 800
+    chunk_overlap: 100
+  semantic:
+    max_chunk_size: 1000
+    min_chunk_size: 150
+  sliding:
+    window_size: 512
+    stride_size: 256
+  parent_child:
+    parent_size: 1200
+    child_size: 250
+    child_overlap: 50
+  late:
+    base_size: 1000
+    split_size: 300
+    split_overlap: 50
+
+retrieval:
+  strategy: parent_child
+  top_k: 5
+  collection_prefix: primelands
+
+cag:
+  similarity_threshold: 0.90
+  history_ttl_hours: 24
+
+crag:
+  confidence_threshold: 0.6
+  expanded_k: 10
+  keyword_weight: 0.5
+  similarity_scale: 0.6
+
+evaluation:
+  seed: 42
+  cag_queries: 100
+  paraphrase_prefixes:
+    - "Tell me: "
+    - "Can you explain "
+    - "I would like to know "
+    - "Please help me with this: "
+  cost:
+    prompt_tokens: 1500
+    completion_tokens: 300
+    input_price_per_million: 0.15
+    output_price_per_million: 0.60
+    embedding_price_per_million: 0.02
+    daily_users: 500
+    queries_per_user: 5
+    days_per_month: 30
+    qdrant_price_per_gb_month: 0.25
+    human_agent_cost_per_query: 0.50
+  queries:
+    - question: Which gated house community is available in Kalutara?
+      keywords: [kaloora]
+    - question: What is the price of land at Solara Meepe?
+      keywords: [solara]
+    - question: Tell me about Veloria in Bokundara
+      keywords: [veloria]
+    - question: Which houses are available in Thalawathugoda?
+      keywords: [thalawathugoda]
+    - question: What amenities does Kaloora offer?
+      keywords: [swimming pool, gymnasium]
+    - question: Are there lands near Galle?
+      keywords: [galle]
+    - question: What is the payment plan for Kaloora?
+      keywords: [payment plan, down payment]
+    - question: Where is Scottish Island located?
+      keywords: [scottish island, digana]
+    - question: Which land is available in Kadawatha?
+      keywords: [kadawatha]
+    - question: How can I contact Prime Lands?
+      keywords: [hotline, contact]
+  hard_queries:
+    - question: Which property is best for a family wanting security and a pool?
+      keywords: [gated, swimming pool]
+    - question: What is the cheapest house I can buy?
+      keywords: [house, lkr]
+    - question: Can I pay in installments without interest?
+      keywords: [installments, interest]
+    - question: Which projects are close to the highway?
+      keywords: [highway, expressway]
+    - question: I want a quiet land by the beach in the south
+      keywords: [beach, galle]
+    - question: Do you offer bank loan facilities?
+      keywords: [bank loan]
+    - question: Which apartments are available?
+      keywords: [apartment]
+    - question: Show me upcoming projects
+      keywords: [upcoming]
+    - question: What lands are in the Kandy area?
+      keywords: [kandy]
+    - question: Are there houses in Gampaha or Kelaniya?
+      keywords: [gampaha, kelaniya]
