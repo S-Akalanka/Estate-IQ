@@ -25,10 +25,10 @@ def get_path(name: str) -> Path:
 
 
 def get_api_key() -> str:
-    """Read the OpenRouter key from the environment."""
-    key = os.getenv("OPENROUTER_API_KEY")
+    """Read the Google AI Studio key from the environment."""
+    key = os.getenv("GOOGLE_API_KEY")
     if not key:
-        raise ValueError("OPENROUTER_API_KEY is missing, add it to the .env file")
+        raise ValueError("GOOGLE_API_KEY is missing, add it to the .env file")
     return key
 
 

@@ -1,27 +1,24 @@
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
 from prime_land.config import CONFIG, get_api_key
 
 PROVIDER = CONFIG["provider"]
 
 
-def get_embeddings() -> OpenAIEmbeddings:
-    """Create the embedding model served through OpenRouter."""
-    return OpenAIEmbeddings(
+def get_embeddings() -> GoogleGenerativeAIEmbeddings:
+    """Create the Gemini embedding model."""
+    return GoogleGenerativeAIEmbeddings(
         model=PROVIDER["embedding_model"],
-        openai_api_key=get_api_key(),
-        openai_api_base=PROVIDER["openrouter_base_url"],
-        chunk_size=PROVIDER["embedding_batch_size"],
-        check_embedding_ctx_length=False,
+        google_api_key=get_api_key(),
+        output_dimensionality=PROVIDER["embedding_dimensions"],
     )
 
 
-def get_llm() -> ChatOpenAI:
-    """Create the chat model served through OpenRouter."""
-    return ChatOpenAI(
+def get_llm() -> ChatGoogleGenerativeAI:
+    """Create the Gemini chat model."""
+    return ChatGoogleGenerativeAI(
         model=PROVIDER["chat_model"],
         temperature=PROVIDER["temperature"],
-        max_tokens=PROVIDER["max_tokens"],
-        openai_api_key=get_api_key(),
-        openai_api_base=PROVIDER["openrouter_base_url"],
+        max_output_tokens=PROVIDER["max_tokens"],
+        google_api_key=get_api_key(),
     )
