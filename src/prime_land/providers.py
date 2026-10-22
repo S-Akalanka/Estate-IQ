@@ -29,7 +29,9 @@ class ThrottledEmbeddings(Embeddings):
             used = sum(count for _, count in self.window)
             if not self.window or used + tokens <= self.limit:
                 break
-            time.sleep(self.window[0][0] + WINDOW_SECONDS - now + 0.1)
+            pause = self.window[0][0] + WINDOW_SECONDS - now + 0.1
+            print(f"token budget used {used}, waiting {pause:.0f}s")
+            time.sleep(pause)
         self.window.append((time.monotonic(), tokens))
 
     def call(self, function, texts: list[str]):

@@ -70,10 +70,10 @@ provider:
   embedding_model: models/gemini-embedding-001
   embedding_dimensions: 768
   embedding_batch_size: 20
-  embedding_tokens_per_minute: 20000
+  embedding_tokens_per_minute: 18000
   chat_requests_per_minute: 9
   retry_wait_seconds: 60
-  max_retries: 5
+  max_retries: 8
   temperature: 0.0
   max_tokens: 1000
 
