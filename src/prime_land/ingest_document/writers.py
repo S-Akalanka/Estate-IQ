@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -20,3 +21,10 @@ def save_jsonl(documents: list[dict], path: Path) -> int:
         for document in documents:
             file.write(json.dumps(document, ensure_ascii=False) + "\n")
     return len(documents)
+
+
+def load_corpus(path: Path, exclude_patterns: list[str]) -> list[dict]:
+    """Read the JSONL corpus and drop pages whose url matches an exclude pattern."""
+    with open(path, encoding="utf-8") as file:
+        documents = [json.loads(line) for line in file]
+    return [d for d in documents if not any(re.search(pattern, d["url"]) for pattern in exclude_patterns)]
