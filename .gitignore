@@ -15,3 +15,6 @@ data/cag_cache/
 
 # output files
 data/primelands_markdown/*.md
+data/chunks/*.jsonl
+Week 05
+docs
