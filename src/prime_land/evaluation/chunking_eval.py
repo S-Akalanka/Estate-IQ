@@ -23,9 +23,11 @@ def recall_at_k(texts: list[str], keywords: list[str]) -> float:
 def evaluate_chunking(stores: dict, embeddings, llm) -> pd.DataFrame:
     """Run every query on every strategy and save per query and summary tables."""
     rows = []
+    total = len(stores) * len(QUERIES)
     for strategy, store in stores.items():
         service = RAGService(store, embeddings, llm, strategy=strategy, k=RETRIEVAL["top_k"])
         for item in QUERIES:
+            print(f"evaluating {len(rows) + 1}/{total} [{strategy}]: {item['question']}")
             result = service.generate(item["question"])
             texts = [doc.page_content.lower() for doc in result["evidence"]]
             keywords = [keyword.lower() for keyword in item["keywords"]]

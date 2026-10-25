@@ -34,9 +34,11 @@ def simulate_cag(cag_service, faqs: list[str]) -> dict:
     cag_service.hits = cag_service.misses = cag_service.faq_hits = cag_service.history_hits = 0
 
     hit_times, miss_times = [], []
-    for query in build_queries(faqs):
+    queries = build_queries(faqs)
+    for number, query in enumerate(queries, 1):
         result = cag_service.generate(query)
         (hit_times if result["cache_hit"] else miss_times).append(result["generation_time"])
+        print(f"simulating {number}/{len(queries)} {'hit' if result['cache_hit'] else 'miss'} {result['generation_time']:.1f}s")
 
     stats = cag_service.stats()
     avg_hit = sum(hit_times) / len(hit_times) if hit_times else 0.0
