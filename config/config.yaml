@@ -66,16 +66,19 @@ paths:
   results_dir: data/results
 
 provider:
-  chat_model: gemini-2.5-flash
+  chat_model: openai/gpt-oss-20b
+  reasoning_effort: low
+  context_chars_per_doc: 1200
   embedding_model: models/gemini-embedding-001
   embedding_dimensions: 768
   embedding_batch_size: 20
   embedding_tokens_per_minute: 18000
-  chat_requests_per_minute: 9
+  chat_requests_per_minute: 2.5
   retry_wait_seconds: 60
+  transient_wait_seconds: 5
   max_retries: 8
   temperature: 0.0
-  max_tokens: 1000
+  max_tokens: 1500
 
 corpus:
   exclude_patterns:
@@ -116,7 +119,8 @@ crag:
   confidence_threshold: 0.6
   expanded_k: 10
   keyword_weight: 0.5
-  similarity_scale: 0.6
+  similarity_floor: 0.55
+  similarity_ceiling: 0.75
 
 evaluation:
   seed: 42
@@ -129,8 +133,8 @@ evaluation:
   cost:
     prompt_tokens: 1500
     completion_tokens: 300
-    input_price_per_million: 0.30
-    output_price_per_million: 2.50
+    input_price_per_million: 0.05
+    output_price_per_million: 0.08
     embedding_price_per_million: 0.15
     daily_users: 500
     queries_per_user: 5

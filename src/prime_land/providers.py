@@ -3,9 +3,10 @@ from collections import deque
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.rate_limiters import InMemoryRateLimiter
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_groq import ChatGroq
 
-from prime_land.config import CONFIG, get_api_key
+from prime_land.config import CONFIG, get_api_key, get_groq_api_key
 from prime_land.ingest_document.chunkers import count_tokens
 
 PROVIDER = CONFIG["provider"]
@@ -42,11 +43,16 @@ class ThrottledEmbeddings(Embeddings):
             try:
                 return function(texts)
             except Exception as error:
-                limited = "429" in str(error) or "RESOURCE_EXHAUSTED" in str(error)
-                if not limited or attempt == PROVIDER["max_retries"]:
+                message = str(error)
+                if "PerDay" in message:
+                    raise RuntimeError("Daily embedding quota used up, rerun after it resets") from error
+                limited = "429" in message or "RESOURCE_EXHAUSTED" in message
+                transient = any(code in message for code in ("500", "503", "INTERNAL", "UNAVAILABLE"))
+                if not (limited or transient) or attempt == PROVIDER["max_retries"]:
                     raise
-                print(f"rate limited, waiting {PROVIDER['retry_wait_seconds']}s")
-                time.sleep(PROVIDER["retry_wait_seconds"])
+                wait = PROVIDER["retry_wait_seconds"] if limited else PROVIDER["transient_wait_seconds"]
+                print(f"{'rate limited' if limited else 'server error'}, waiting {wait}s")
+                time.sleep(wait)
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Embed texts in groups that each fit the token budget."""
@@ -77,16 +83,17 @@ def get_embeddings() -> ThrottledEmbeddings:
     return ThrottledEmbeddings(inner)
 
 
-def get_llm() -> ChatGoogleGenerativeAI:
-    """Create the Gemini chat model with rate limiting."""
+def get_llm() -> ChatGroq:
+    """Create the Groq chat model with rate limiting."""
     limiter = InMemoryRateLimiter(
         requests_per_second=PROVIDER["chat_requests_per_minute"] / 60, max_bucket_size=1
     )
-    return ChatGoogleGenerativeAI(
+    return ChatGroq(
         model=PROVIDER["chat_model"],
         temperature=PROVIDER["temperature"],
-        max_output_tokens=PROVIDER["max_tokens"],
+        max_tokens=PROVIDER["max_tokens"],
+        reasoning_effort=PROVIDER["reasoning_effort"],
         max_retries=PROVIDER["max_retries"],
         rate_limiter=limiter,
-        google_api_key=get_api_key(),
+        groq_api_key=get_groq_api_key(),
     )

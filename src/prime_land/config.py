@@ -32,6 +32,14 @@ def get_api_key() -> str:
     return key
 
 
+def get_groq_api_key() -> str:
+    """Read the Groq key from the environment."""
+    key = os.getenv("GROQ_API_KEY")
+    if not key:
+        raise ValueError("GROQ_API_KEY is missing, add it to the .env file")
+    return key
+
+
 def load_faqs() -> list[str]:
     """Read the FAQ questions used to warm the cache."""
     return load_config("faqs.yaml")["faqs"]
