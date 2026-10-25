@@ -18,10 +18,11 @@ class CAGService:
     def warm_faqs(self, questions: list[str]) -> int:
         """Generate and store answers for FAQ questions that have none yet."""
         warmed = 0
-        for question in questions:
+        for number, question in enumerate(questions, 1):
             entry = self.cache.faqs.get(question)
             if entry and entry["answer"] is not None:
                 continue
+            print(f"warming FAQ {number}/{len(questions)}: {question}")
             result = self.rag_service.generate(question)
             self.cache.set_faq(question, result["answer"], result["evidence_urls"])
             warmed += 1
@@ -30,8 +31,11 @@ class CAGService:
     def generate(self, query: str) -> dict:
         """Answer from the cache when a similar query exists, otherwise run RAG and cache it."""
         start = time.perf_counter()
-        vector = self.cache.embed(query)
-        cached = self.cache.get(vector)
+        cached = self.cache.get_exact(query)
+        vector = None
+        if cached is None:
+            vector = self.cache.embed(query)
+            cached = self.cache.get(vector)
 
         if cached:
             self.hits += 1

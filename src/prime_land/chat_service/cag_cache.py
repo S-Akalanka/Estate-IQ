@@ -44,10 +44,24 @@ class CAGCache:
         best = int(scores.argmax())
         return entries[best], float(scores[best])
 
-    def get(self, vector: list[float]) -> dict | None:
-        """Look up a query vector in the FAQs first and then in the history."""
+    def prune_history(self) -> None:
+        """Drop history entries older than the time to live."""
         now = time.time()
         self.history = {q: e for q, e in self.history.items() if now - e["created_at"] < self.ttl_seconds}
+
+    def get_exact(self, query: str) -> dict | None:
+        """Return a cached answer for the same question text without embedding it."""
+        self.prune_history()
+        key = " ".join(query.lower().split())
+        for source, tier in (("faq", self.faqs), ("history", self.history)):
+            for entry in tier.values():
+                if entry["answer"] is not None and " ".join(entry["query"].lower().split()) == key:
+                    return {**entry, "source": source, "similarity": 1.0}
+        return None
+
+    def get(self, vector: list[float]) -> dict | None:
+        """Look up a query vector in the FAQs first and then in the history."""
+        self.prune_history()
         for source, tier in (("faq", self.faqs), ("history", self.history)):
             entry, similarity = self.find(tier, vector)
             if entry and similarity >= self.threshold:
