@@ -41,8 +41,8 @@ def load_chunks(strategy: str) -> list[dict]:
         return [json.loads(line) for line in file]
 
 
-def index_chunks(client: QdrantClient, embeddings, chunks: list[dict], strategy: str, rebuild: bool = False) -> QdrantVectorStore:
-    """Fill a strategy collection with embedded chunks, resuming from what is already stored."""
+def index_chunks(client: QdrantClient, embeddings, chunks: list[dict], strategy: str, rebuild: bool = False, limit: int | None = None) -> QdrantVectorStore:
+    """Fill a strategy collection, resuming from what is stored and embedding at most limit new chunks."""
     name = collection_name(strategy)
     if rebuild and client.collection_exists(name):
         client.delete_collection(name)
@@ -58,7 +58,7 @@ def index_chunks(client: QdrantClient, embeddings, chunks: list[dict], strategy:
         print(f"{strategy}: resuming from {done} of {len(chunks)}")
     documents = [
         Document(page_content=chunk["text"], metadata={k: v for k, v in chunk.items() if k != "text"})
-        for chunk in chunks[done:]
+        for chunk in chunks[done : done + limit if limit else None]
     ]
     for start in range(0, len(documents), PROVIDER["embedding_batch_size"]):
         store.add_documents(documents[start : start + PROVIDER["embedding_batch_size"]])
