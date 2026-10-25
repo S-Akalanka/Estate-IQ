@@ -24,7 +24,8 @@ def evaluate_crag(rag_service, crag_service, llm) -> tuple[pd.DataFrame, dict]:
     questions = [item["question"] for item in EVALUATION["queries"] + EVALUATION["hard_queries"]]
 
     rows = []
-    for question in questions:
+    for number, question in enumerate(questions, 1):
+        print(f"comparing {number}/{len(questions)}: {question}")
         rag = rag_service.generate(question)
         crag = crag_service.generate(question)
         rows.append(
