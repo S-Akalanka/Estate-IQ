@@ -18,3 +18,4 @@ data/primelands_markdown/*.md
 data/chunks/*.jsonl
 Week 05
 docs
+data/results/index_comparison.csv
