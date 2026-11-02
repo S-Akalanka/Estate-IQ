@@ -10,7 +10,7 @@ Question: {question}
 
 Answer with 2 to 4 short bullet points and a one sentence summary."""
 
-REWRITE_TEMPLATE = """Rewrite this real estate question with more specific search keywords such as property names, locations and property types. Return only the rewritten question.
+REWRITE_TEMPLATE = """Rewrite this question about Prime Lands properties in Sri Lanka with more specific search keywords such as property names, locations and property types. Return only the rewritten question.
 
 Question: {question}"""
 

@@ -1,4 +1,5 @@
 import time
+import unicodedata
 from collections import deque
 
 from langchain_core.embeddings import Embeddings
@@ -11,6 +12,7 @@ from prime_land.ingest_document.chunkers import count_tokens
 
 PROVIDER = CONFIG["provider"]
 WINDOW_SECONDS = 60
+PUNCTUATION = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-"})
 
 
 class ThrottledEmbeddings(Embeddings):
@@ -50,7 +52,13 @@ class ThrottledEmbeddings(Embeddings):
                 transient = any(code in message for code in ("500", "503", "INTERNAL", "UNAVAILABLE"))
                 if not (limited or transient) or attempt == PROVIDER["max_retries"]:
                     raise
-                wait = PROVIDER["retry_wait_seconds"] if limited else PROVIDER["transient_wait_seconds"]
+                if transient and len(texts) > 1 and attempt >= 2:
+                    print(f"server error, splitting {len(texts)} texts")
+                    middle = len(texts) // 2
+                    return self.call(function, texts[:middle]) + self.call(function, texts[middle:])
+                wait = PROVIDER["retry_wait_seconds"] if limited else min(
+                    PROVIDER["transient_wait_seconds"] * 2**attempt, PROVIDER["retry_wait_seconds"]
+                )
                 print(f"{'rate limited' if limited else 'server error'}, waiting {wait}s")
                 time.sleep(wait)
 
@@ -70,6 +78,7 @@ class ThrottledEmbeddings(Embeddings):
 
     def embed_query(self, text: str) -> list[float]:
         """Embed one query."""
+        text = unicodedata.normalize("NFKC", text).translate(PUNCTUATION) or "empty"
         return self.call(lambda texts: self.inner.embed_query(texts[0]), [text])
 
 
