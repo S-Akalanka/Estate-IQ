@@ -1,6 +1,8 @@
 import json
 import random
 
+from groq import RateLimitError
+
 from prime_land.config import CONFIG, get_path
 
 EVALUATION = CONFIG["evaluation"]
@@ -36,7 +38,11 @@ def simulate_cag(cag_service, faqs: list[str]) -> dict:
     hit_times, miss_times = [], []
     queries = build_queries(faqs)
     for number, query in enumerate(queries, 1):
-        result = cag_service.generate(query)
+        try:
+            result = cag_service.generate(query)
+        except RateLimitError:
+            print(f"Groq limit reached after {number - 1} of {len(queries)} queries, saving partial stats")
+            break
         (hit_times if result["cache_hit"] else miss_times).append(result["generation_time"])
         print(f"simulating {number}/{len(queries)} {'hit' if result['cache_hit'] else 'miss'} {result['generation_time']:.1f}s")
 

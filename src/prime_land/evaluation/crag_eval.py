@@ -1,6 +1,8 @@
+import json
 import re
 
 import pandas as pd
+from groq import RateLimitError
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -23,13 +25,21 @@ def evaluate_crag(rag_service, crag_service, llm) -> tuple[pd.DataFrame, dict]:
     judge = ChatPromptTemplate.from_template(JUDGE_TEMPLATE) | llm | StrOutputParser()
     questions = [item["question"] for item in EVALUATION["queries"] + EVALUATION["hard_queries"]]
 
-    rows = []
-    for number, question in enumerate(questions, 1):
-        print(f"comparing {number}/{len(questions)}: {question}")
-        rag = rag_service.generate(question)
-        crag = crag_service.generate(question)
-        rows.append(
-            {
+    results_dir = get_path("results_dir")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    progress = results_dir / "crag_progress.jsonl"
+    rows = [json.loads(line) for line in progress.read_text(encoding="utf-8").splitlines()] if progress.exists() else []
+    done = {row["question"] for row in rows}
+    if rows:
+        print(f"resuming from {len(rows)} saved rows")
+    try:
+        for number, question in enumerate(questions, 1):
+            if question in done:
+                continue
+            print(f"comparing {number}/{len(questions)}: {question}")
+            rag = rag_service.generate(question)
+            crag = crag_service.generate(question)
+            row = {
                 "question": question,
                 "rag_confidence": calculate_confidence(rag["evidence"], question),
                 "crag_initial_confidence": crag["confidence_initial"],
@@ -38,7 +48,14 @@ def evaluate_crag(rag_service, crag_service, llm) -> tuple[pd.DataFrame, dict]:
                 "rag_quality": judge_score(judge, question, rag["answer"]),
                 "crag_quality": judge_score(judge, question, crag["answer"]),
             }
-        )
+            rows.append(row)
+            with open(progress, "a", encoding="utf-8") as file:
+                file.write(json.dumps(row) + "\n")
+        progress.unlink(missing_ok=True)
+    except RateLimitError:
+        print(f"Groq limit reached, saving {len(rows)} of {len(questions)} rows, rerun to continue")
+    if not rows:
+        return pd.DataFrame(), {}
 
     table = pd.DataFrame(rows).round(3)
     table["confidence_gain"] = (table["crag_final_confidence"] - table["rag_confidence"]).round(3)
@@ -54,7 +71,5 @@ def evaluate_crag(rag_service, crag_service, llm) -> tuple[pd.DataFrame, dict]:
         "avg_quality_gain": float(table["quality_gain"].mean()),
     }
 
-    results_dir = get_path("results_dir")
-    results_dir.mkdir(parents=True, exist_ok=True)
     table.to_csv(results_dir / "crag_impact.csv", index=False)
     return table, summary
