@@ -81,7 +81,10 @@ def semantic_chunk(documents: list[dict]) -> list[dict]:
 
         buffer = ""
         for piece in pieces:
-            if buffer and count_tokens(buffer) >= config["min_chunk_size"]:
+            if buffer and (
+                count_tokens(buffer) >= config["min_chunk_size"]
+                or count_tokens(f"{buffer}\n\n{piece}") > config["max_chunk_size"]
+            ):
                 chunks.append(make_chunk(document, buffer, "semantic", len(chunks)))
                 buffer = piece
             else:
