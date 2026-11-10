@@ -69,13 +69,14 @@ provider:
   chat_model: openai/gpt-oss-20b
   reasoning_effort: low
   context_chars_per_doc: 1200
-  embedding_model: models/gemini-embedding-001
+  embedding_model: nomic-ai/modernbert-embed-base
   embedding_dimensions: 768
-  embedding_batch_size: 20
-  embedding_tokens_per_minute: 18000
+  embedding_batch_size: 16
+  embedding_max_tokens: 8192
+  document_prefix: "search_document: "
+  query_prefix: "search_query: "
+  late_window_chars: 20000
   chat_requests_per_minute: 2.5
-  retry_wait_seconds: 60
-  transient_wait_seconds: 5
   max_retries: 8
   temperature: 0.0
   max_tokens: 1500
@@ -102,9 +103,8 @@ chunking:
     child_size: 250
     child_overlap: 50
   late:
-    base_size: 1000
-    split_size: 300
-    split_overlap: 50
+    chunk_size: 300
+    chunk_overlap: 50
 
 retrieval:
   strategy: parent_child
@@ -133,9 +133,8 @@ evaluation:
   cost:
     prompt_tokens: 1500
     completion_tokens: 300
-    input_price_per_million: 0.05
-    output_price_per_million: 0.08
-    embedding_price_per_million: 0.15
+    input_price_per_million: 0.075
+    output_price_per_million: 0.30
     daily_users: 500
     queries_per_user: 5
     days_per_month: 30

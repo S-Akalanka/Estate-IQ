@@ -1,102 +1,80 @@
 import time
-import unicodedata
-from collections import deque
 
+import numpy as np
 from langchain_core.embeddings import Embeddings
 from langchain_core.rate_limiters import InMemoryRateLimiter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
+from sentence_transformers import SentenceTransformer
 
-from prime_land.config import CONFIG, get_api_key, get_groq_api_key
-from prime_land.ingest_document.chunkers import count_tokens
+from prime_land.config import CONFIG, get_groq_api_key
 
 PROVIDER = CONFIG["provider"]
-WINDOW_SECONDS = 60
-PUNCTUATION = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-"})
 
 
-class ThrottledEmbeddings(Embeddings):
-    """Embedding wrapper that stays under a tokens per minute limit and retries on 429 errors."""
+class LocalEmbeddings(Embeddings):
+    """Local sentence transformer that adds the task prefixes and normalizes vectors."""
 
-    def __init__(self, inner: Embeddings):
-        self.inner = inner
-        self.limit = PROVIDER["embedding_tokens_per_minute"]
-        self.window = deque()
-
-    def wait_for(self, tokens: int) -> None:
-        """Block until the token budget of the last minute has room for tokens."""
-        while True:
-            now = time.monotonic()
-            while self.window and now - self.window[0][0] >= WINDOW_SECONDS:
-                self.window.popleft()
-            used = sum(count for _, count in self.window)
-            if not self.window or used + tokens <= self.limit:
-                break
-            pause = self.window[0][0] + WINDOW_SECONDS - now + 0.1
-            print(f"token budget used {used}, waiting {pause:.0f}s")
-            time.sleep(pause)
-        self.window.append((time.monotonic(), tokens))
-
-    def call(self, function, texts: list[str]):
-        """Run one embedding request within the budget, retrying when rate limited."""
-        tokens = sum(count_tokens(text) for text in texts)
-        for attempt in range(PROVIDER["max_retries"] + 1):
-            self.wait_for(tokens)
-            try:
-                return function(texts)
-            except Exception as error:
-                message = str(error)
-                if "PerDay" in message:
-                    raise RuntimeError("Daily embedding quota used up, rerun after it resets") from error
-                limited = "429" in message or "RESOURCE_EXHAUSTED" in message
-                transient = any(code in message for code in ("500", "503", "INTERNAL", "UNAVAILABLE"))
-                if not (limited or transient) or attempt == PROVIDER["max_retries"]:
-                    raise
-                if transient and len(texts) > 1 and attempt >= 2:
-                    print(f"server error, splitting {len(texts)} texts")
-                    middle = len(texts) // 2
-                    return self.call(function, texts[:middle]) + self.call(function, texts[middle:])
-                wait = PROVIDER["retry_wait_seconds"] if limited else min(
-                    PROVIDER["transient_wait_seconds"] * 2**attempt, PROVIDER["retry_wait_seconds"]
-                )
-                print(f"{'rate limited' if limited else 'server error'}, waiting {wait}s")
-                time.sleep(wait)
+    def __init__(self):
+        self.model = SentenceTransformer(PROVIDER["embedding_model"])
+        self.model.max_seq_length = PROVIDER["embedding_max_tokens"]
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        """Embed texts in groups that each fit the token budget."""
-        vectors, group, group_tokens = [], [], 0
-        for text in texts:
-            tokens = count_tokens(text)
-            if group and group_tokens + tokens > self.limit:
-                vectors += self.call(self.inner.embed_documents, group)
-                group, group_tokens = [], 0
-            group.append(text)
-            group_tokens += tokens
-        if group:
-            vectors += self.call(self.inner.embed_documents, group)
-        return vectors
+        """Embed texts as documents."""
+        prefixed = [PROVIDER["document_prefix"] + text for text in texts]
+        vectors = self.model.encode(prefixed, batch_size=PROVIDER["embedding_batch_size"], normalize_embeddings=True)
+        return vectors.tolist()
 
     def embed_query(self, text: str) -> list[float]:
         """Embed one query."""
-        text = unicodedata.normalize("NFKC", text).translate(PUNCTUATION) or "empty"
-        return self.call(lambda texts: self.inner.embed_query(texts[0]), [text])
+        return self.model.encode(PROVIDER["query_prefix"] + text, normalize_embeddings=True).tolist()
+
+    def embed_late(self, content: str, spans: list[tuple[int, int]]) -> list[list[float]]:
+        """Embed a whole text once, then average the token vectors inside each character span."""
+        prefix = PROVIDER["document_prefix"]
+        vectors, index = [], 0
+        while index < len(spans):
+            first = index
+            origin = spans[first][0]
+            while index < len(spans) and (index == first or spans[index][1] - origin <= PROVIDER["late_window_chars"]):
+                index += 1
+            group = spans[first:index]
+            text = prefix + content[origin : group[-1][1]]
+            tokens = self.model.encode(text, output_value="token_embeddings")
+            offsets = self.model.tokenizer(text, return_offsets_mapping=True, truncation=True, max_length=self.model.max_seq_length)["offset_mapping"]
+            for start, end in group:
+                low, high = len(prefix) + start - origin, len(prefix) + end - origin
+                inside = [i for i, (a, b) in enumerate(offsets) if b > a and a >= low and b <= high]
+                vector = np.asarray(tokens[inside] if inside else tokens).mean(axis=0)
+                vectors.append((vector / np.linalg.norm(vector)).tolist())
+        return vectors
 
 
-def get_embeddings() -> ThrottledEmbeddings:
-    """Create the Gemini embedding model with rate limiting."""
-    inner = GoogleGenerativeAIEmbeddings(
-        model=PROVIDER["embedding_model"],
-        google_api_key=get_api_key(),
-        output_dimensionality=PROVIDER["embedding_dimensions"],
-    )
-    return ThrottledEmbeddings(inner)
+class TimedLimiter(InMemoryRateLimiter):
+    """Rate limiter that adds up how long it made callers wait."""
+
+    waited = 0.0
+
+    def acquire(self, *, blocking: bool = True) -> bool:
+        """Take a token and record the time spent waiting for it."""
+        start = time.perf_counter()
+        allowed = super().acquire(blocking=blocking)
+        TimedLimiter.waited += time.perf_counter() - start
+        return allowed
+
+
+def limiter_wait() -> float:
+    """Return the total seconds spent waiting on the chat rate limiter so far."""
+    return TimedLimiter.waited
+
+
+def get_embeddings() -> LocalEmbeddings:
+    """Create the local embedding model."""
+    return LocalEmbeddings()
 
 
 def get_llm() -> ChatGroq:
     """Create the Groq chat model with rate limiting."""
-    limiter = InMemoryRateLimiter(
-        requests_per_second=PROVIDER["chat_requests_per_minute"] / 60, max_bucket_size=1
-    )
+    limiter = TimedLimiter(requests_per_second=PROVIDER["chat_requests_per_minute"] / 60, max_bucket_size=1)
     return ChatGroq(
         model=PROVIDER["chat_model"],
         temperature=PROVIDER["temperature"],

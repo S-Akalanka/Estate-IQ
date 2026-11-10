@@ -9,14 +9,14 @@ I built it to explore how different chunking strategies, caching and retrieval c
 1. **Crawls** the site with an async breadth-first crawler that respects a rate limit, and parses each page into markdown plus property metadata (price, address, bedrooms, and so on).
 2. **Saves** the pages as one markdown file each and as a single JSONL corpus.
 3. **Chunks** the corpus with five strategies: `semantic`, `fixed`, `sliding`, `parent_child` and `late`.
-4. **Indexes** each strategy's chunks into a local Qdrant collection, with embeddings from Google Gemini.
+4. **Indexes** each strategy's chunks into a local Qdrant collection, with embeddings from a local sentence transformer model.
 5. **Answers questions** with three approaches:
    - **RAG**: retrieve relevant chunks and generate an answer with the LLM.
    - **CAG**: cache answers to common questions, so repeat questions skip the LLM.
    - **CRAG**: score retrieval confidence and correct weak results before answering.
 6. **Evaluates** the strategies on precision, recall, answer relevance, latency and cost.
 
-The LLM is served through Groq.
+The LLM is served through Groq. Embeddings run locally (nomic-ai/modernbert-embed-base), so indexing needs no API key and has no quota. The first run downloads the model, about 600 MB.
 
 ## Project layout
 
@@ -37,7 +37,7 @@ Requires Python 3.14 or newer and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
-cp .env.example .env   # then add your GOOGLE_API_KEY and GROQ_API_KEY
+cp .env.example .env   # then add your GROQ_API_KEY
 ```
 
 ## Running it

@@ -24,14 +24,6 @@ def get_path(name: str) -> Path:
     return PROJECT_ROOT / CONFIG["paths"][name]
 
 
-def get_api_key() -> str:
-    """Read the Google AI Studio key from the environment."""
-    key = os.getenv("GOOGLE_API_KEY")
-    if not key:
-        raise ValueError("GOOGLE_API_KEY is missing, add it to the .env file")
-    return key
-
-
 def get_groq_api_key() -> str:
     """Read the Groq key from the environment."""
     key = os.getenv("GROQ_API_KEY")
