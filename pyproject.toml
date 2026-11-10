@@ -1,7 +1,7 @@
 [project]
 name = "prime-land"
 version = "0.1.0"
-description = "Add your description here"
+description = "Crawls Prime Lands listings and answers questions about them with RAG, CAG and CRAG."
 readme = "README.md"
 authors = [
     { name = "S-Akalanka", email = "sasiri.akalankaa@gmail.com" }
