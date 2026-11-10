@@ -8,6 +8,7 @@ from prime_land.chat_service.prompts import RAG_TEMPLATE
 from prime_land.chat_service.retrieval import retrieve
 from prime_land.chat_service.utils import format_docs
 from prime_land.config import CONFIG
+from prime_land.providers import limiter_wait
 
 RETRIEVAL = CONFIG["retrieval"]
 
@@ -29,7 +30,7 @@ class RAGService:
 
     def retrieve(self, query: str, k: int | None = None) -> list:
         """Retrieve documents for a query."""
-        return retrieve(self.store, self.embeddings, self.strategy, query, k or self.k)
+        return retrieve(self.store, self.strategy, query, k or self.k)
 
     def answer_from(self, docs: list, query: str) -> str:
         """Generate an answer from documents that were already retrieved."""
@@ -37,11 +38,11 @@ class RAGService:
 
     def generate(self, query: str) -> dict:
         """Retrieve evidence and generate a cited answer."""
-        start = time.perf_counter()
+        start, waited = time.perf_counter(), limiter_wait()
         result = self.chain.invoke(query)
         return {
             "answer": result["answer"],
             "evidence": result["docs"],
             "evidence_urls": list(dict.fromkeys(doc.metadata["url"] for doc in result["docs"])),
-            "generation_time": time.perf_counter() - start,
+            "generation_time": time.perf_counter() - start - (limiter_wait() - waited),
         }

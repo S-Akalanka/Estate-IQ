@@ -7,6 +7,7 @@ from prime_land.chat_service.prompts import REWRITE_TEMPLATE
 from prime_land.chat_service.rag_service import RAGService
 from prime_land.chat_service.utils import calculate_confidence
 from prime_land.config import CONFIG
+from prime_land.providers import limiter_wait
 
 CRAG = CONFIG["crag"]
 
@@ -20,7 +21,7 @@ class CRAGService:
 
     def generate(self, query: str, threshold: float = CRAG["confidence_threshold"]) -> dict:
         """Retrieve, correct if confidence is below the threshold, then answer."""
-        start = time.perf_counter()
+        start, waited = time.perf_counter(), limiter_wait()
         docs = self.rag_service.retrieve(query)
         confidence_initial = calculate_confidence(docs, query)
         confidence_final = confidence_initial
@@ -44,5 +45,5 @@ class CRAGService:
             "confidence_initial": confidence_initial,
             "confidence_final": confidence_final,
             "correction_applied": corrected,
-            "generation_time": time.perf_counter() - start,
+            "generation_time": time.perf_counter() - start - (limiter_wait() - waited),
         }

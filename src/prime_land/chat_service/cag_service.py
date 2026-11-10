@@ -2,6 +2,7 @@ import time
 
 from prime_land.chat_service.cag_cache import CAGCache
 from prime_land.chat_service.rag_service import RAGService
+from prime_land.providers import limiter_wait
 
 
 class CAGService:
@@ -30,7 +31,7 @@ class CAGService:
 
     def generate(self, query: str) -> dict:
         """Answer from the cache when a similar query exists, otherwise run RAG and cache it."""
-        start = time.perf_counter()
+        start, waited = time.perf_counter(), limiter_wait()
         cached = self.cache.get_exact(query)
         vector = None
         if cached is None:
@@ -61,7 +62,7 @@ class CAGService:
             "cache_hit": False,
             "cache_source": None,
             "similarity": 0.0,
-            "generation_time": time.perf_counter() - start,
+            "generation_time": time.perf_counter() - start - (limiter_wait() - waited),
         }
 
     def stats(self) -> dict:
