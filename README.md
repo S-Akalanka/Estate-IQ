@@ -45,7 +45,13 @@ cp .env.example .env   # then add your GOOGLE_API_KEY and GROQ_API_KEY
 Run the notebooks in `src/prime_land/notebooks/` in order:
 
 1. `01_crawl_primelands.ipynb`: crawl the site and save the markdown and corpus.
+   - Result: 150 pages saved as markdown and as corpus entries.
+   - Property pages (34 of them) have most fields filled: price, title and property ID are complete, address is 33/34, agent is 32/34. Bedrooms (21/34), bathrooms (10/34), amenities (18/34) and square feet (5/34) are sparse, so they can't be relied on for filtering.
 2. `02_chunk_and_index.ipynb`: chunk the corpus and index it in Qdrant.
+   - Result: 77 documents after the exclude patterns are applied. They split into 455 semantic, 185 fixed, 363 sliding, 580 parent-child and 148 late chunks.
+   - Indexing reported that every strategy was already complete on this run, so no new points were added and the 900-point budget was left untouched.
+   - Retrieval comparison: semantic chunks average 233 tokens and fixed average 608. Sliding averages 486, parent-child 205 and late 696. Index sizes range from 0.45 MB (late) to 1.78 MB (parent-child).
+   - Late chunking's average retrieval time is about 20 seconds, far above the others (620 to 740 ms). The log shows rate-limit waits during that cell, so that number probably reflects waiting rather than search speed.
 3. `03_intelligence_layers.ipynb`: try RAG, CAG and CRAG on questions.
 4. `04_performance_arena.ipynb`: compare the chunking strategies and the caching and correction results, and estimate cost.
 
