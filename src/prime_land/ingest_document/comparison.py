@@ -11,7 +11,7 @@ RETRIEVAL = CONFIG["retrieval"]
 QUERIES = [item["question"] for item in CONFIG["evaluation"]["queries"]]
 
 
-def compare_strategies(client, embeddings, stores: dict, chunk_sets: dict) -> pd.DataFrame:
+def compare_strategies(client, stores: dict, chunk_sets: dict) -> pd.DataFrame:
     """Build the table of chunk count, size, index size and retrieval time per strategy."""
     rows = []
     for strategy, chunks in chunk_sets.items():
@@ -19,7 +19,7 @@ def compare_strategies(client, embeddings, stores: dict, chunk_sets: dict) -> pd
         elapsed = []
         for query in QUERIES:
             start = time.perf_counter()
-            retrieve(stores[strategy], embeddings, strategy, query, RETRIEVAL["top_k"])
+            retrieve(stores[strategy], strategy, query, RETRIEVAL["top_k"])
             elapsed.append((time.perf_counter() - start) * 1000)
         rows.append(
             {

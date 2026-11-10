@@ -118,12 +118,18 @@ def parent_child_chunk(documents: list[dict]) -> list[dict]:
 
 
 def late_chunk(documents: list[dict]) -> list[dict]:
-    """Create large base passages that are split again at query time."""
-    splitter = token_splitter(SETTINGS["late"]["base_size"], 0)
+    """Split documents into small chunks and record where each one sits in the page text."""
+    config = SETTINGS["late"]
+    splitter = token_splitter(config["chunk_size"], config["chunk_overlap"])
     chunks = []
     for document in documents:
-        for text in splitter.split_text(document["content"]):
-            chunks.append(make_chunk(document, text, "late", len(chunks)))
+        content = document["content"]
+        position = 0
+        for text in splitter.split_text(content):
+            start = max(content.find(text, position), position)
+            end = min(start + len(text), len(content))
+            chunks.append(make_chunk(document, text, "late", len(chunks), char_start=start, char_end=end))
+            position = start + 1
     return chunks
 
 

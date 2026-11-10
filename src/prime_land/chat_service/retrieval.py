@@ -1,9 +1,4 @@
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-from prime_land.config import CONFIG
-
-SETTINGS = CONFIG["chunking"]
 
 
 def cosine(a: list[float], b: list[float]) -> float:
@@ -26,29 +21,9 @@ def parent_documents(hits: list[tuple[Document, float]]) -> list[Document]:
     return documents
 
 
-def late_documents(hits: list[tuple[Document, float]], embeddings, query: str) -> list[Document]:
-    """Split each base passage and keep the piece closest to the query."""
-    config = SETTINGS["late"]
-    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        encoding_name=SETTINGS["encoding"],
-        chunk_size=config["split_size"],
-        chunk_overlap=config["split_overlap"],
-    )
-    query_vector = embeddings.embed_query(query)
-    documents = []
-    for document, score in hits:
-        pieces = splitter.split_text(document.page_content)
-        vectors = embeddings.embed_documents(pieces)
-        best = max(range(len(pieces)), key=lambda i: cosine(query_vector, vectors[i]))
-        documents.append(Document(page_content=pieces[best], metadata={**document.metadata, "score": score}))
-    return documents
-
-
-def retrieve(store, embeddings, strategy: str, query: str, k: int) -> list[Document]:
-    """Retrieve top k documents, applying the strategy specific retrieval step."""
+def retrieve(store, strategy: str, query: str, k: int) -> list[Document]:
+    """Retrieve top k documents, swapping children for parents when the strategy needs it."""
     hits = store.similarity_search_with_score(query, k=k * 3 if strategy == "parent_child" else k)
     if strategy == "parent_child":
         return parent_documents(hits)[:k]
-    if strategy == "late":
-        return late_documents(hits, embeddings, query)
     return [Document(page_content=d.page_content, metadata={**d.metadata, "score": s}) for d, s in hits]
