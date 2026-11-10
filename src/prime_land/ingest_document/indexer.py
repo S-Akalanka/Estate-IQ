@@ -1,10 +1,9 @@
 import json
 from pathlib import Path
 
-from langchain_core.documents import Document
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import Distance, PointStruct, VectorParams
 
 from prime_land.config import CONFIG, get_path
 
@@ -41,28 +40,41 @@ def load_chunks(strategy: str) -> list[dict]:
         return [json.loads(line) for line in file]
 
 
-def index_chunks(client: QdrantClient, embeddings, chunks: list[dict], strategy: str, rebuild: bool = False, limit: int | None = None) -> QdrantVectorStore:
-    """Fill a strategy collection, resuming from what is stored and embedding at most limit new chunks."""
-    name = collection_name(strategy)
-    if rebuild and client.collection_exists(name):
-        client.delete_collection(name)
-    if not client.collection_exists(name):
-        client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=PROVIDER["embedding_dimensions"], distance=Distance.COSINE),
-        )
-    store = QdrantVectorStore(client=client, collection_name=name, embedding=embeddings)
+def late_vectors(embeddings, chunks: list[dict], documents: list[dict]) -> list[list[float]]:
+    """Embed each page once and average the token vectors of its chunks."""
+    content = {document["url"]: document["content"] for document in documents}
+    vectors = []
+    for url in dict.fromkeys(chunk["url"] for chunk in chunks):
+        spans = [(chunk["char_start"], chunk["char_end"]) for chunk in chunks if chunk["url"] == url]
+        vectors += embeddings.embed_late(content[url], spans)
+    return vectors
 
-    done = client.count(name).count
-    if done:
-        print(f"{strategy}: resuming from {done} of {len(chunks)}")
-    documents = [
-        Document(page_content=chunk["text"], metadata={k: v for k, v in chunk.items() if k != "text"})
-        for chunk in chunks[done : done + limit if limit else None]
+
+def index_chunks(client: QdrantClient, embeddings, chunks: list[dict], strategy: str, documents: list[dict]) -> QdrantVectorStore:
+    """Rebuild a strategy collection from its chunks."""
+    name = collection_name(strategy)
+    if client.collection_exists(name):
+        client.delete_collection(name)
+    client.create_collection(
+        collection_name=name,
+        vectors_config=VectorParams(size=PROVIDER["embedding_dimensions"], distance=Distance.COSINE),
+    )
+    if strategy == "late":
+        vectors = late_vectors(embeddings, chunks, documents)
+    else:
+        vectors = embeddings.embed_documents([chunk["text"] for chunk in chunks])
+
+    points = [
+        PointStruct(
+            id=index,
+            vector=vector,
+            payload={"page_content": chunk["text"], "metadata": {k: v for k, v in chunk.items() if k != "text"}},
+        )
+        for index, (chunk, vector) in enumerate(zip(chunks, vectors))
     ]
-    for start in range(0, len(documents), PROVIDER["embedding_batch_size"]):
-        store.add_documents(documents[start : start + PROVIDER["embedding_batch_size"]])
-    return store
+    for start in range(0, len(points), 256):
+        client.upsert(collection_name=name, points=points[start : start + 256])
+    return open_store(client, embeddings, strategy)
 
 
 def open_store(client: QdrantClient, embeddings, strategy: str) -> QdrantVectorStore:
