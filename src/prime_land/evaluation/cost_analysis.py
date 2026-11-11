@@ -10,11 +10,10 @@ DIMENSIONS = CONFIG["provider"]["embedding_dimensions"]
 def analyze_cost(cag_stats: dict, vector_count: int) -> dict:
     """Estimate monthly API and storage cost at scale and the return against human agents."""
     monthly_queries = COST["daily_users"] * COST["queries_per_user"] * COST["days_per_month"]
-    embedding_cost = 30 * COST["embedding_price_per_million"] / 1e6
     hit_rate = cag_stats["hit_rate"]
 
-    api_without_cache = monthly_queries * (query_cost() + embedding_cost)
-    api_with_cache = monthly_queries * (1 - hit_rate) * query_cost() + monthly_queries * embedding_cost
+    api_without_cache = monthly_queries * query_cost()
+    api_with_cache = monthly_queries * (1 - hit_rate) * query_cost()
     storage_gb = vector_count * DIMENSIONS * 4 / 1e9
     storage = storage_gb * COST["qdrant_price_per_gb_month"]
     system_cost = api_with_cache + storage
