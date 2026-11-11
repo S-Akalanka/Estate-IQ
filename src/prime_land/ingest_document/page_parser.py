@@ -23,6 +23,7 @@ SECTION_STOPS = {
 }
 STATUSES = {"LIVE", "SOLD OUT", "UPCOMING", "COMPLETED", "ONGOING"}
 MAX_AMENITY_LENGTH = 80
+RECOMMEND_LINE = r"\W*(?:we also )?recommend\W*"
 
 
 def property_type_of(url: str) -> str | None:
@@ -93,12 +94,15 @@ def build_document(soup: BeautifulSoup, url: str, depth: int) -> dict:
         tag.decompose()
 
     heading = soup.find("h1")
-    title = heading.get_text(strip=True) if heading else (soup.title.string or url).strip()
+    page_title = soup.title.string if soup.title and soup.title.string else url
+    title = heading.get_text(strip=True) if heading else page_title.strip()
     headings = [h.get_text(strip=True) for h in soup.find_all(["h1", "h2", "h3", "h4"])]
     lines = [line.strip() for line in soup.get_text("\n").splitlines() if line.strip()]
+    cut = next((i for i, line in enumerate(lines) if re.fullmatch(RECOMMEND_LINE, line, re.I)), len(lines))
+    lines = lines[:cut]
 
     content = markdownify(str(soup.body or soup), heading_style="ATX", strip=["a", "img"])
-    content = content.split("WE ALSO RECOMMEND")[0]
+    content = re.split(f"^{RECOMMEND_LINE}$", content, flags=re.I | re.M)[0]
     first_heading = re.search(r"^#", content, re.M)
     content = content[first_heading.start() :] if first_heading else content
     content = re.sub(r"\n{3,}", "\n\n", content).strip()
