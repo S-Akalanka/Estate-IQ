@@ -119,8 +119,8 @@ crag:
   confidence_threshold: 0.6
   expanded_k: 10
   keyword_weight: 0.5
-  similarity_floor: 0.55
-  similarity_ceiling: 0.75
+  similarity_floor: 0.35
+  similarity_ceiling: 0.60
 
 evaluation:
   seed: 42
