@@ -57,6 +57,16 @@ Run the notebooks in `src/prime_land/notebooks/` in order:
 
 Settings such as crawl limits, chunk sizes and the retrieval strategy live in `config/config.yaml`.
 
+## Chat app
+
+After running notebooks 02 and 03, ask questions in a browser:
+
+```bash
+uv run streamlit run src/prime_land/app.py
+```
+
+Pick the answer mode in the sidebar: RAG, CRAG, or CAG (a cache in front of CRAG). Each answer shows its source pages, whether it came from the cache, the CRAG confidence and the time taken. Close any notebook that uses the index first, because local Qdrant allows one client at a time.
+
 ## Notes
 
 - Qdrant runs locally, and its data is kept under `data/qdrant/`.
