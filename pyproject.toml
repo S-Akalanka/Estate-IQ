@@ -24,6 +24,7 @@ dependencies = [
     "tiktoken>=0.14.0",
     "sentence-transformers>=6.2.0",
     "einops>=0.8.2",
+    "streamlit>=1.67.0",
 ]
 
 [project.scripts]
