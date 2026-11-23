@@ -7,8 +7,10 @@ from prime_land.chat_service.crag_service import CRAGService
 from prime_land.chat_service.rag_service import RAGService
 from prime_land.config import CONFIG, get_path, load_faqs
 from prime_land.ingest_document.indexer import get_client, open_store
+from prime_land.ingest_document.writers import load_corpus
 from prime_land.providers import get_embeddings, get_llm
 
+LISTING_IDS = {"ongoing", "completed", "upcoming"}
 MODES = {
     "RAG": "Retrieve chunks and answer.",
     "CRAG": "RAG plus a confidence check that rewrites weak searches.",
@@ -42,19 +44,59 @@ def status_line(result: dict) -> str:
     return " | ".join(parts)
 
 
+@st.cache_data
+def load_properties() -> dict:
+    """Map each property page url to its metadata."""
+    documents = load_corpus(get_path("corpus_file"), CONFIG["corpus"]["exclude_patterns"])
+    return {
+        document["url"]: document["metadata"]
+        for document in documents
+        if document["page_type"] == "property" and document["metadata"]["property_id"].lower() not in LISTING_IDS
+    }
+
+
+def price_text(meta: dict) -> str | None:
+    """Format the listed price, for example From LKR 1,050,000 per perch."""
+    if not meta.get("price"):
+        return None
+    if not meta.get("price_unit"):
+        return f"LKR {meta['price']:,}"
+    return f"From LKR {meta['price']:,} {meta['price_unit'].lower().replace(' upwards', '')}"
+
+
+def property_card(url: str, meta: dict) -> None:
+    """Draw one property as a small card."""
+    details = [
+        (meta.get("property_type") or "").title(),
+        (meta.get("status") or "").title(),
+        price_text(meta),
+        (meta.get("address") or "").title(),
+        f"Hotline {meta['agent']}" if meta.get("agent") else None,
+    ]
+    with st.container(border=True):
+        st.markdown(f"**[{meta['title'].title()}]({url})**")
+        st.caption(" | ".join(part for part in details if part))
+
+
 def show(message: dict) -> None:
-    """Draw one chat message with its sources and status."""
+    """Draw one chat message with its property cards, other sources and status."""
+    properties = load_properties()
+    sources = message.get("sources", [])
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        if message.get("sources"):
-            st.markdown("**Sources**\n\n" + "\n".join(f"- {url}" for url in message["sources"]))
+        for url in sources:
+            if url in properties:
+                property_card(url, properties[url])
+        pages = [url for url in sources if url not in properties]
+        if pages:
+            st.markdown("**Other pages**\n\n" + "\n".join(f"- {url}" for url in pages))
         if message.get("status"):
             st.caption(f"{message['mode']}: {message['status']}")
 
 
-st.set_page_config(page_title="Prime Lands Assistant")
-st.title("Prime Lands Assistant")
-st.caption("Ask about Prime Lands lands, houses and apartments.")
+st.set_page_config(page_title="Estate IQ")
+st.title("Estate IQ")
+st.caption("Ask about lands, houses and apartments on the Prime Lands website.")
 
 mode = st.sidebar.selectbox("Answer mode", list(MODES), index=2)
 st.sidebar.caption(MODES[mode])
