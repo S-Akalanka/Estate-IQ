@@ -1,7 +1,7 @@
 [project]
-name = "prime-land"
+name = "estate-iq"
 version = "0.1.0"
-description = "Crawls Prime Lands listings and answers questions about them with RAG, CAG and CRAG."
+description = "AI assistant for real estate websites, built on RAG, CAG and CRAG."
 readme = "README.md"
 authors = [
     { name = "S-Akalanka", email = "sasiri.akalankaa@gmail.com" }
@@ -28,7 +28,10 @@ dependencies = [
 ]
 
 [project.scripts]
-prime-land = "prime_land:main"
+estate-iq = "prime_land:main"
+
+[tool.uv.build-backend]
+module-name = "prime_land"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
